@@ -1489,7 +1489,8 @@ void _phy_iq_calibrate_8733b(struct dm_struct *dm,
 		iqk_info->iqk_step = 0;
 		RF_DBG(dm, DBG_RF_IQK, "[IQK]Kcount = %d\n", iqk_info->kcount);
 #if 1
-		if (dm->rfe_type <= 2 || dm->rfe_type == 4 || dm->rfe_type == 9) {//only pathA or pathB
+		if (dm->rfe_type <= 2 || dm->rfe_type == 4 || dm->rfe_type == 9
+			|| dm->rfe_type == 13) {//only pathA or pathB
 			_iqk_afe_setting_8733b(dm, true);
 			_iqk_start_iqk_8733b(dm, path);
 			_iqk_afe_setting_8733b(dm, false);

@@ -980,27 +980,19 @@ config_phydm_switch_band_8733b(struct dm_struct *dm, u8 central_ch)
 			  central_ch);
 		return false;
 	}
-	if (dm->cut_version < ODM_CUT_D) {
-		for (i = 0; i < 20; i++) {
-			/*write RF-0x18*/
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x1);
-			odm_set_rf_reg(dm, RF_PATH_A, 0xA0, 0x4, 0x0);
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x0);
-			ODM_delay_us(250);
-			if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
-				break;
-		}
-	} else {
-		for (i = 0; i < 20; i++) {
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
-			ODM_delay_us(250);
-			if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
-				break;
-		}
+
+	for (i = 0; i < 20; i++) {
+		/*write RF-0x18*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x1);
+		odm_set_rf_reg(dm, RF_PATH_A, 0xA0, 0xc, 0x0);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x0);
+		ODM_delay_us(250);
+		if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
+			break;
 	}
+
 	PHYDM_DBG(dm, ODM_PHY_CONFIG, "Success to switch band (ch: %d)\n",
 		  central_ch);
 
@@ -1168,27 +1160,19 @@ config_phydm_switch_channel_8733b(struct dm_struct *dm, u8 central_ch)
 		else if (central_ch > 80)
 			rf_reg19 |= BIT(18);
 		}
-	if (dm->cut_version < ODM_CUT_D) {
-		for (i = 0; i < 20; i++) {
-			/*write RF-0x18*/
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x1);
-			odm_set_rf_reg(dm, RF_PATH_A, 0xA0, 0x4, 0x0);
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x0);
-			ODM_delay_us(250);
-			if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
-				break;
-		}
-	} else {
-		for (i = 0; i < 20; i++) {
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
-			ODM_delay_us(250);
-			if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
-				break;
-		}
+
+	for (i = 0; i < 20; i++) {
+		/*write RF-0x18*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x1);
+		odm_set_rf_reg(dm, RF_PATH_A, 0xA0, 0xc, 0x0);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x0);
+		ODM_delay_us(250);
+		if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
+			break;
 	}
+	
 	/*write RF-0x19*/
 	odm_set_rf_reg(dm, RF_PATH_A, RF_0x19, RFREG_MASK, rf_reg19);
 	odm_set_rf_reg(dm, RF_PATH_B, RF_0x19, RFREG_MASK, rf_reg19);
@@ -1398,27 +1382,19 @@ config_phydm_switch_bandwidth_8733b(struct dm_struct *dm, u8 pri_ch,
 	odm_set_rf_reg(dm, RF_PATH_B, RF_0x3f, RFREG_MASK, 0x10);
 	odm_set_rf_reg(dm, RF_PATH_B, RF_0xee, 0x4, 0x0);
 	#endif
-	if (dm->cut_version < ODM_CUT_D) {
-		for (i = 0; i < 20; i++) {
-			/*write RF-0x18*/
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x1);
-			odm_set_rf_reg(dm, RF_PATH_A, 0xA0, 0x4, 0x0);
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x0);
-			ODM_delay_us(250);
-			if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
-				break;
-		}
-	} else {
-		for (i = 0; i < 20; i++) {
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
-			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
-			ODM_delay_us(250);
-			if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
-				break;
-		}
+
+	for (i = 0; i < 20; i++) {
+		/*write RF-0x18*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK, rf_reg18);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, RFREG_MASK, rf_reg18);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x1);
+		odm_set_rf_reg(dm, RF_PATH_A, 0xA0, 0xc, 0x0);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0xdd, 0x10, 0x0);
+		ODM_delay_us(250);
+		if(odm_get_rf_reg(dm, RF_PATH_A, 0xc5, 0x8000))
+			break;
 	}
+
 	/*TX_CCK_IND_int*/
 	if (bw == CHANNEL_WIDTH_40) {
 		odm_set_rf_reg(dm, RF_PATH_A, RF_0x1a, BIT(0), 0x1);

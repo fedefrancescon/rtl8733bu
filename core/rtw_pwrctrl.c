@@ -149,6 +149,16 @@ int _ips_leave(_adapter *padapter)
 
 		pwrpriv->bkeepfwalive = _FALSE;
 		pwrpriv->bpower_saving = _FALSE;
+
+		if (padapter->hang_trigger_type == 1)
+			RTW_INFO("Recover TX hang\n");
+		else if (padapter->hang_trigger_type == 2)
+			RTW_INFO("Recover RX hang\n");
+		else if (padapter->hang_trigger_type == 3)
+			RTW_INFO("Recover FW hang\n");
+		else if (padapter->hang_trigger_type == 6)
+			RTW_INFO("Recover by proc\n");
+		padapter->hang_trigger_type = 0;
 	}
 
 	return result;

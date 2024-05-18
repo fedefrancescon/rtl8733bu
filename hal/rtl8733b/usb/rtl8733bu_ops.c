@@ -96,7 +96,7 @@ static u8 sethwreg(PADAPTER padapter, u8 variable, u8 *val)
 			* BIT7 value - Toggle bit change.
 			*/
 			ps_state = ps_state & 0xC1;
-			RTW_INFO("##### Change RPWM value to = %x for switch clk #####\n", ps_state);
+			/* RTW_INFO("##### Change RPWM value to = %x for switch clk #####\n", ps_state); */
 
 			#ifdef CONFIG_LPS_PG
 			if ((ps_state & BIT(0)) && (LPS_PG == pwrpriv->lps_level))

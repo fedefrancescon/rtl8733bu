@@ -303,27 +303,28 @@ __inline static void _exit_critical_ex(_lock *plock, _irqL *pirqL)
 	spin_unlock_irqrestore(plock, *pirqL);
 }
 
-__inline static void _enter_critical_bh(_lock *plock, _irqL *pirqL)
+__inline static void _rtw_spinlock_bh(_lock *plock)
 {
 	spin_lock_bh(plock);
 }
 
-__inline static void _exit_critical_bh(_lock *plock, _irqL *pirqL)
+__inline static void _rtw_spinunlock_bh(_lock *plock)
 {
 	spin_unlock_bh(plock);
 }
 
-__inline static void enter_critical_bh(_lock *plock)
+__inline static int _rtw_spin_is_locked(_lock *plock)
 {
-	spin_lock_bh(plock);
+	return spin_is_locked(plock);
 }
 
-__inline static void exit_critical_bh(_lock *plock)
-{
-	spin_unlock_bh(plock);
-}
+#define enter_critical_bh(plock) _rtw_spinlock_bh(plock)
+#define exit_critical_bh(plock) _rtw_spinunlock_bh(plock)
 
-__inline static int _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
+#define _enter_critical_bh(plock, pirqL) _rtw_spinlock_bh(plock)
+#define _exit_critical_bh(plock, pirqL) _rtw_spinunlock_bh(plock)
+
+__inline static int _rtw_mutex_lock_interruptible(_mutex *pmutex)
 {
 	int ret = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
@@ -335,8 +336,7 @@ __inline static int _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 	return ret;
 }
 
-
-__inline static int _enter_critical_mutex_lock(_mutex *pmutex, _irqL *pirqL)
+__inline static int _rtw_mutex_lock(_mutex *pmutex)
 {
 	int ret = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
@@ -347,7 +347,7 @@ __inline static int _enter_critical_mutex_lock(_mutex *pmutex, _irqL *pirqL)
 	return ret;
 }
 
-__inline static void _exit_critical_mutex(_mutex *pmutex, _irqL *pirqL)
+__inline static void _rtw_mutex_unlock(_mutex *pmutex)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	mutex_unlock(pmutex);
@@ -355,6 +355,10 @@ __inline static void _exit_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 	up(pmutex);
 #endif
 }
+
+#define _enter_critical_mutex(pmutex, pirqL) _rtw_mutex_lock_interruptible(pmutex)
+#define _enter_critical_mutex_lock(pmutex, pirqL) _rtw_mutex_lock(pmutex)
+#define _exit_critical_mutex(pmutex, pirqL) _rtw_mutex_unlock(pmutex)
 
 __inline static _list	*get_list_head(_queue	*queue)
 {

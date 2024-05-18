@@ -21,6 +21,9 @@
 
 #define MAX_RECVBUF_SZ		16384	/* 16KB (RX_FIFO_SIZE_8733B), TX: 32KB */
 
+#define C2H_GET_CMD_ID_1BYTE(c2h_pkt) LE_BITS_TO_1BYTE(c2h_pkt + 0X00, 0, 8)
+#define C2H_GET_SEQ_1BYTE(c2h_pkt) LE_BITS_TO_1BYTE(c2h_pkt + 0X01, 0, 8)
+
 /*
  * MAC Register definition
  */

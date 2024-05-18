@@ -438,6 +438,8 @@ enum odm_cmninfo {
 	ODM_CMNINFO_X_CAP_SETTING,
 	ODM_CMNINFO_ADVANCE_OTA,
 	ODM_CMNINFO_HP_HWID,
+	ODM_CMNINFO_BROADCOM_HWID,
+	ODM_CMNINFO_RALINK_HWID,
 	ODM_CMNINFO_TSSI_ENABLE, /*also for cmn_info_update*/
 	ODM_CMNINFO_DIS_DPD,
 	ODM_CMNINFO_POWER_VOLTAGE,
@@ -796,7 +798,8 @@ struct dm_struct {
 	u32			last_num_qry_phy_status_all;
 	u32			rx_pwdb_ave;
 	boolean		is_init_hw_info_by_rfe;
-
+	boolean		is_fixed_chsm_winsize_bc;
+	boolean		is_fixed_chsm_winsize_mtk;
 	//TSSI
 	u8			en_tssi_mode;
 

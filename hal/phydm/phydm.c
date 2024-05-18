@@ -2997,6 +2997,12 @@ void odm_cmn_info_update(struct dm_struct *dm, u32 cmn_info, u64 value)
 	case ODM_CMNINFO_TSSI_ENABLE:
 		dm->en_tssi_mode = (u8)value;
 		break;
+	case ODM_CMNINFO_BROADCOM_HWID:
+		dm->is_fixed_chsm_winsize_bc = (boolean)value;
+		break;	
+	case ODM_CMNINFO_RALINK_HWID:
+		dm->is_fixed_chsm_winsize_mtk = (boolean)value;
+		break;
 	default:
 		break;
 	}

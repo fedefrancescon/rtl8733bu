@@ -1051,6 +1051,8 @@ u8 rtw_joinbss_cmd(_adapter  *padapter, struct wlan_network *pnetwork)
 
 	pmlmeinfo->assoc_AP_vendor = check_assoc_AP(pnetwork->network.IEs, pnetwork->network.IELength);
 
+	rtw_phydm_update_ap_vendor_ie(padapter);
+
 #ifdef CONFIG_80211AC_VHT
 	/* save AP beamform_cap info for BCM IOT issue */
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_BROADCOM)

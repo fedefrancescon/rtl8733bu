@@ -1856,6 +1856,40 @@ void rtw_phydm_pwr_tracking_directly(_adapter *adapter)
 }
 #endif
 
+void rtw_phydm_update_ap_vendor_ie(_adapter *adapter)
+{
+	u8 i;
+	_adapter *iface;
+	struct mlme_ext_priv *pmlmeext ;
+	struct mlme_ext_info *pmlmeinfo ;
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	bool BROADCOM_HWID = FALSE;
+	bool RALINK_HWID = FALSE;
+
+	for (i = 0; i < dvobj->iface_nums; i++){
+		iface = dvobj->padapters[i];
+		if (iface!= NULL) {
+			pmlmeext = &(iface->mlmeextpriv);
+			pmlmeinfo = &(pmlmeext->mlmext_info);
+			if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_BROADCOM) {
+				BROADCOM_HWID = TRUE;
+				goto exit;
+			} else if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_RALINK) {
+				RALINK_HWID = TRUE;
+				goto exit;
+			}
+
+		}
+	}
+
+exit:
+	RTW_INFO("%s ODM_CMNINFO_BROADCOM_HWID:%d ODM_CMNINFO_RALINK_HWID:%d\n",
+		__func__, BROADCOM_HWID, RALINK_HWID);
+	odm_cmn_info_update(phydm, ODM_CMNINFO_BROADCOM_HWID, BROADCOM_HWID);
+	odm_cmn_info_update(phydm, ODM_CMNINFO_RALINK_HWID, RALINK_HWID);
+}
+
 void rtw_phydm_watchdog(_adapter *adapter, bool in_lps)
 {
 	u8	bLinked = _FALSE;

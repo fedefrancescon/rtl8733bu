@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2021 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -499,7 +499,7 @@ void	expire_timeout_chk(_adapter *padapter)
 		psta = NULL;
 	}
 
-	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_lock(pstapriv);
 
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
@@ -673,7 +673,7 @@ void	expire_timeout_chk(_adapter *padapter)
 		}
 	}
 
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_unlock(pstapriv);
 
 	if (chk_alive_num) {
 #if defined(CONFIG_ACTIVE_KEEP_ALIVE_CHECK)
@@ -751,17 +751,10 @@ void	expire_timeout_chk(_adapter *padapter)
 
 			psta->keep_alive_trycnt = 0;
 			del_asoc_list[i] = chk_alive_list[i];
-			_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
-			if (rtw_is_list_empty(&psta->asoc_list) == _FALSE) {
-				rtw_list_delete(&psta->asoc_list);
-				pstapriv->asoc_list_cnt--;
-				#ifdef CONFIG_RTW_TOKEN_BASED_XMIT
-				if (psta->tbtx_enable)
-					pstapriv->tbtx_asoc_list_cnt--;
-				#endif
-				STA_SET_MESH_PLINK(psta, NULL);
-			}
-			_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+			rtw_stapriv_asoc_list_lock(pstapriv);
+			if (rtw_is_list_empty(&psta->asoc_list) == _FALSE)
+				rtw_stapriv_asoc_list_del(pstapriv, psta);
+			rtw_stapriv_asoc_list_unlock(pstapriv);
 		}
 
 		/* delete loop */
@@ -847,13 +840,12 @@ void rtw_ap_update_sta_ra_info(_adapter *padapter, struct sta_info *psta)
 #ifdef CONFIG_BMC_TX_RATE_SELECT
 u8 rtw_ap_find_mini_tx_rate(_adapter *adapter)
 {
-	_irqL irqL;
 	_list	*phead, *plist;
 	u8 miini_tx_rate = ODM_RATEVHTSS4MCS9, sta_tx_rate;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &adapter->stapriv;
 
-	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_lock(pstapriv);
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
 	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
@@ -864,7 +856,7 @@ u8 rtw_ap_find_mini_tx_rate(_adapter *adapter)
 		if (sta_tx_rate < miini_tx_rate)
 			miini_tx_rate = sta_tx_rate;
 	}
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_unlock(pstapriv);
 
 	return miini_tx_rate;
 }
@@ -1150,7 +1142,7 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 			&& !GET_HT_OP_ELE_STA_CHL_WIDTH(phtpriv_sta->ht_op))
 			psta->cmn.bw_mode = CHANNEL_WIDTH_20;
 
-		if (psta->ht_40mhz_intolerant)
+		if ((psta->ht_40mhz_intolerant)||(pmlmepriv->sw_to_20mhz))
 			psta->cmn.bw_mode = CHANNEL_WIDTH_20;
 
 		if (pmlmeext->cur_bwmode < psta->cmn.bw_mode)
@@ -3111,6 +3103,9 @@ static void update_bcn_htinfo_ie(_adapter *padapter)
 	WLAN_BSSID_EX *pnetwork = &(pmlmeinfo->network);
 	unsigned char *p, *ie = pnetwork->IEs;
 	u32 len = 0;
+	int i;
+	struct sta_info *psta;
+	struct macid_ctl_t *macid_ctl = &padapter->dvobj->macid_ctl;
 
 	if (pmlmepriv->htpriv.ht_option == _FALSE)
 		return;
@@ -3148,7 +3143,14 @@ static void update_bcn_htinfo_ie(_adapter *padapter)
 				RTW_INFO("%s:switching to 20Mhz\n", __FUNCTION__);
 
 				/*TODO : cur_bwmode/cur_ch_offset switches to 20Mhz*/
+				for (i = 0; i < MACID_NUM_SW_LIMIT; i++) {
+					psta = macid_ctl->sta[i];
+					if (psta && !is_broadcast_mac_addr(psta->cmn.mac_addr)) {
+						psta->cmn.bw_mode = CHANNEL_WIDTH_20;
+						rtw_dm_ra_mask_wk_cmd(padapter, (u8 *)psta);
+					}
 			}
+		}
 		} else {
 
 			if ((pmlmepriv->num_sta_40mhz_intolerant == 0) && (pmlmepriv->ht_20mhz_width_req == _FALSE)
@@ -3548,16 +3550,17 @@ void rtw_process_public_act_bsscoex(_adapter *padapter, u8 *pframe, uint frame_l
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	u8 *frame_body = pframe + sizeof(struct rtw_ieee80211_hdr_3addr);
 	uint frame_body_len = frame_len - sizeof(struct rtw_ieee80211_hdr_3addr);
-	u8 category, action;
+	/*u8 category, action;*/
+	struct macid_ctl_t *macid_ctl = &padapter->dvobj->macid_ctl;
+	int i;
 
 	psta = rtw_get_stainfo(pstapriv, get_addr2_ptr(pframe));
 	if (psta == NULL)
 		return;
-
-
+#if 0
 	category = frame_body[0];
 	action = frame_body[1];
-
+#endif
 	if (frame_body_len > 0) {
 		if ((frame_body[2] == EID_BSSCoexistence) && (frame_body[3] > 0)) {
 			u8 ie_data = frame_body[4];
@@ -3594,10 +3597,16 @@ void rtw_process_public_act_bsscoex(_adapter *padapter, u8 *pframe, uint frame_l
 		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, _TRUE, 0);
 
 		associated_stainfo_update(padapter, psta, STA_INFO_UPDATE_BW);
+		if (pmlmepriv->sw_to_20mhz) {
+			for (i = 0; i < MACID_NUM_SW_LIMIT; i++) {
+				psta = macid_ctl->sta[i];
+				if (psta && !is_broadcast_mac_addr(psta->cmn.mac_addr)) {
+					psta->cmn.bw_mode = CHANNEL_WIDTH_20;
+					rtw_dm_ra_mask_wk_cmd(padapter, (u8 *)psta);
+				}
+			}
+		}
 	}
-
-
-
 }
 
 void rtw_process_ht_action_smps(_adapter *padapter, u8 *ta, u8 ctrl_field)
@@ -3718,12 +3727,11 @@ void associated_clients_update(_adapter *padapter, u8 updated, u32 sta_info_type
 {
 	/* update associcated stations cap. */
 	if (updated == _TRUE) {
-		_irqL irqL;
 		_list	*phead, *plist;
 		struct sta_info *psta = NULL;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
-		_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+		rtw_stapriv_asoc_list_lock(pstapriv);
 
 		phead = &pstapriv->asoc_list;
 		plist = get_next(phead);
@@ -3737,7 +3745,7 @@ void associated_clients_update(_adapter *padapter, u8 updated, u32 sta_info_type
 			associated_stainfo_update(padapter, psta, sta_info_type);
 		}
 
-		_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+		rtw_stapriv_asoc_list_unlock(pstapriv);
 
 	}
 
@@ -4157,7 +4165,6 @@ int rtw_ap_inform_ch_switch(_adapter *padapter, u8 new_ch, u8 ch_offset)
 
 int rtw_sta_flush(_adapter *padapter, bool enqueue)
 {
-	_irqL irqL;
 	_list	*phead, *plist;
 	int ret = 0;
 	struct sta_info *psta = NULL;
@@ -4173,7 +4180,7 @@ int rtw_sta_flush(_adapter *padapter, bool enqueue)
 	RTW_INFO(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(padapter->pnetdev));
 
 	/* pick sta from sta asoc_queue */
-	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_lock(pstapriv);
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
 	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
@@ -4182,13 +4189,7 @@ int rtw_sta_flush(_adapter *padapter, bool enqueue)
 		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
 		plist = get_next(plist);
 
-		rtw_list_delete(&psta->asoc_list);
-		pstapriv->asoc_list_cnt--;
-		#ifdef CONFIG_RTW_TOKEN_BASED_XMIT
-		if (psta->tbtx_enable)
-			pstapriv->tbtx_asoc_list_cnt--;
-		#endif
-		STA_SET_MESH_PLINK(psta, NULL);
+		rtw_stapriv_asoc_list_del(pstapriv, psta);
 
 		stainfo_offset = rtw_stainfo_offset(pstapriv, psta);
 		if (stainfo_offset_valid(stainfo_offset))
@@ -4196,7 +4197,7 @@ int rtw_sta_flush(_adapter *padapter, bool enqueue)
 		else
 			rtw_warn_on(1);
 	}
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_unlock(pstapriv);
 
 	/* call ap_free_sta() for each sta picked */
 	for (i = 0; i < flush_num; i++) {
@@ -4278,7 +4279,6 @@ void rtw_ap_restore_network(_adapter *padapter)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *psta;
 	struct security_priv *psecuritypriv = &(padapter->securitypriv);
-	_irqL irqL;
 	_list	*phead, *plist;
 	u8 chk_alive_num = 0;
 	char chk_alive_list[NUM_STA];
@@ -4299,7 +4299,7 @@ void rtw_ap_restore_network(_adapter *padapter)
 		rtw_set_key(padapter, psecuritypriv, psecuritypriv->dot118021XGrpKeyid, 0, _FALSE);
 	}
 
-	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_lock(pstapriv);
 
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
@@ -4315,7 +4315,7 @@ void rtw_ap_restore_network(_adapter *padapter)
 			chk_alive_list[chk_alive_num++] = stainfo_offset;
 	}
 
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_unlock(pstapriv);
 
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
@@ -5232,7 +5232,6 @@ u8 rtw_ap_sta_states_check(_adapter *adapter)
 	struct sta_info *psta;
 	struct sta_priv *pstapriv = &adapter->stapriv;
 	_list *plist, *phead;
-	_irqL irqL;
 	u8 rst = _FALSE;
 
 	if (!MLME_IS_AP(adapter) && !MLME_IS_MESH(adapter))
@@ -5241,7 +5240,7 @@ u8 rtw_ap_sta_states_check(_adapter *adapter)
 	if (pstapriv->auth_list_cnt !=0)
 		return _TRUE;
 
-	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_lock(pstapriv);
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
 	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
@@ -5259,7 +5258,7 @@ u8 rtw_ap_sta_states_check(_adapter *adapter)
 			break;
 		}
 	}
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_unlock(pstapriv);
 	return rst;
 }
 
@@ -5818,7 +5817,6 @@ static bool rtw_ap_data_bmc_to_uc(_adapter *adapter
 {
 	struct sta_priv *stapriv = &adapter->stapriv;
 	struct xmit_priv *xmitpriv = &adapter->xmitpriv;
-	_irqL irqL;
 	_list *head, *list;
 	struct sta_info *sta;
 	char b2u_sta_id[NUM_STA];
@@ -5826,7 +5824,7 @@ static bool rtw_ap_data_bmc_to_uc(_adapter *adapter
 	bool bmc_need = _FALSE;
 	int i;
 
-	_enter_critical_bh(&stapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_lock(stapriv);
 	head = &stapriv->asoc_list;
 	list = get_next(head);
 
@@ -5840,7 +5838,7 @@ static bool rtw_ap_data_bmc_to_uc(_adapter *adapter
 		if (stainfo_offset_valid(stainfo_offset))
 			b2u_sta_id[b2u_sta_num++] = stainfo_offset;
 	}
-	_exit_critical_bh(&stapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_unlock(stapriv);
 
 	if (!b2u_sta_num)
 		goto exit;
@@ -5916,14 +5914,13 @@ static void rtw_ap_data_flood_for_unknown_da(_adapter *adapter
 {
 	struct sta_priv *stapriv = &adapter->stapriv;
 	struct xmit_priv *xmitpriv = &adapter->xmitpriv;
-	_irqL irqL;
 	_list *head, *list;
 	struct sta_info *sta;
 	char sta_id[NUM_STA];
 	u8 sta_num = 0;
 	int i;
 
-	_enter_critical_bh(&stapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_lock(stapriv);
 	head = &stapriv->asoc_list;
 	list = get_next(head);
 
@@ -5937,7 +5934,7 @@ static void rtw_ap_data_flood_for_unknown_da(_adapter *adapter
 		if (stainfo_offset_valid(stainfo_offset))
 			sta_id[sta_num++] = stainfo_offset;
 	}
-	_exit_critical_bh(&stapriv->asoc_list_lock, &irqL);
+	rtw_stapriv_asoc_list_unlock(stapriv);
 
 	if (!sta_num)
 		goto exit;

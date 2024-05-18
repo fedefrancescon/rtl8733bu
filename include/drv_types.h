@@ -1941,6 +1941,7 @@ struct _ADAPTER {
 #ifdef RTW_SIMPLE_CONFIG
 	u8 rtw_simple_config;
 #endif
+	u8 hang_trigger_type;
 };
 
 #define adapter_to_dvobj(adapter) ((adapter)->dvobj)

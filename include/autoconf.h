@@ -204,7 +204,7 @@
 
 	#define CONFIG_LPS
 	#if defined(CONFIG_LPS)
-		#define CONFIG_LPS_LCLK
+		/* #define CONFIG_LPS_LCLK */
 	#endif
 
 	#ifdef CONFIG_LPS_LCLK
@@ -215,7 +215,7 @@
 			#define LPS_RPWM_WAIT_MS 300
 			#define CONFIG_DETECT_CPWM_BY_POLLING
 		#endif /* !CONFIG_SUPPORT_USB_INT */
-		#define DBG_CHECK_FW_PS_STATE
+		/* #define DBG_CHECK_FW_PS_STATE */
 	#endif /* CONFIG_LPS_LCLK */
 
 	#ifdef CONFIG_LPS

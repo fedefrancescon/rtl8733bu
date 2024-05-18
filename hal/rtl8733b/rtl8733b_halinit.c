@@ -207,6 +207,14 @@ u8 rtl8733b_hal_init(PADAPTER adapter)
 	hal->fw_ractrl = _TRUE;
 #endif /* !CONFIG_NO_FW */
 
+	/* Modify ampdu timing 0x604[20]=0 to fix transmitting ampdu packet with crc error to encrypted router */
+	{
+		u32 val32;
+
+		val32 = rtw_read32(adapter, 0x604);
+		val32 &= ~BIT20;
+		rtw_write32(adapter, 0x604, val32);
+	}
 _exit:
 #ifdef CONFIG_TWO_MAC_DRIVER
 	{

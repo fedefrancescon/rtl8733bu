@@ -5094,15 +5094,15 @@ int proc_get_sreset(struct seq_file *m, void *v)
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 
-	if (psrtpriv->dbg_sreset_ctrl == _TRUE) {
-		RTW_PRINT_SEL(m, "self_dect_tx_cnt:%llu\n", psrtpriv->self_dect_tx_cnt);
-		RTW_PRINT_SEL(m, "self_dect_rx_cnt:%llu\n", psrtpriv->self_dect_rx_cnt);
-		RTW_PRINT_SEL(m, "self_dect_fw_cnt:%llu\n", psrtpriv->self_dect_fw_cnt);
-		RTW_PRINT_SEL(m, "tx_dma_status_cnt:%llu\n", psrtpriv->tx_dma_status_cnt);
-		RTW_PRINT_SEL(m, "rx_dma_status_cnt:%llu\n", psrtpriv->rx_dma_status_cnt);
-		RTW_PRINT_SEL(m, "self_dect_case:%d\n", psrtpriv->self_dect_case);
-		RTW_PRINT_SEL(m, "dbg_sreset_cnt:%d\n", pdbgpriv->dbg_sreset_cnt);
-	}
+	RTW_PRINT_SEL(m, "last detect case : %d\n", psrtpriv->self_dect_case);
+	RTW_PRINT_SEL(m, "1. driver self_dect_tx count : %llu\n", psrtpriv->self_dect_tx_cnt);
+	RTW_PRINT_SEL(m, "2. driver self_dect_rx count : %llu\n", psrtpriv->self_dect_rx_cnt);
+	RTW_PRINT_SEL(m, "3. driver self_dect_fw count : %llu\n", psrtpriv->self_dect_fw_cnt);
+	RTW_PRINT_SEL(m, "4. MAC tx_dma_status count : %llu\n", psrtpriv->tx_dma_status_cnt);
+	RTW_PRINT_SEL(m, "5. MAC rx_dma_status count : %llu\n", psrtpriv->rx_dma_status_cnt);
+	RTW_PRINT_SEL(m, "6. driver proc_trigger_cnt : %llu\n", psrtpriv->proc_trigger_cnt);
+	RTW_PRINT_SEL(m, "silent reset count : %d\n", pdbgpriv->dbg_sreset_cnt);
+
 	return 0;
 }
 
@@ -5130,12 +5130,17 @@ ssize_t proc_set_sreset(struct file *file, const char __user *buffer, size_t cou
 		if (num < 1)
 			return count;
 
-		if (trigger_point == SRESET_TGP_NULL)
+		if (trigger_point == SRESET_TGP_NULL) {
+			psrtpriv->self_dect_case = 6;
+			psrtpriv->proc_trigger_cnt++;
 			rtw_hal_sreset_reset(padapter);
-		else if (trigger_point == SRESET_TGP_INFO)
+		} else if (trigger_point == SRESET_TGP_INFO) {
 			psrtpriv->dbg_sreset_ctrl = _TRUE;
-		else
+		} else {
+			psrtpriv->self_dect_case = 6;
+			psrtpriv->proc_trigger_cnt++;
 			sreset_set_trigger_point(padapter, trigger_point);
+		}
 	}
 
 	return count;
@@ -7119,18 +7124,13 @@ ssize_t proc_set_tx_deauth(struct file *file, const char __user *buffer, size_t 
 
 					psta = rtw_get_stainfo(pstapriv, &mac_addr[index][0]);
 					if (psta && key_type != IEEE80211W_WRONG_KEY && key_type != IEEE80211W_NO_KEY) {
-						_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+						rtw_stapriv_asoc_list_lock(pstapriv);
 						if (rtw_is_list_empty(&psta->asoc_list) == _FALSE) {
-							rtw_list_delete(&psta->asoc_list);
-							pstapriv->asoc_list_cnt--;
-							#ifdef CONFIG_RTW_TOKEN_BASED_XMIT
-							if (psta->tbtx_enable)
-								pstapriv->tbtx_asoc_list_cnt--;
-							#endif
+							rtw_stapriv_asoc_list_del(pstapriv, psta);
 							updated |= ap_free_sta(padapter, psta, _FALSE, WLAN_REASON_PREV_AUTH_NOT_VALID, _TRUE);
 
 						}
-						_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+						rtw_stapriv_asoc_list_unlock(pstapriv);
 					}
 
 					RTW_INFO("STA[%u]:"MAC_FMT"\n", index , MAC_ARG(&mac_addr[index][0]));
