@@ -1134,7 +1134,19 @@ void rtw_stapriv_asoc_list_unlock(struct sta_priv *stapriv)
 
 void rtw_stapriv_asoc_list_add(struct sta_priv *stapriv, struct sta_info *sta)
 {
-	rtw_warn_on(!_rtw_spin_is_locked(&stapriv->asoc_list_lock));
+/**
+   Commented out the rtw_warn_on from upstream since returns always 0, after investigations
+   found in include/linux/spinlock.h that:
+
+   * Further, on CONFIG_SMP=n builds with CONFIG_DEBUG_SPINLOCK=n,
+   * the return value is always 0 (see include/linux/spinlock_up.h).
+   * Therefore you should not rely heavily on the return value.
+
+   So not really a reliable and config independant thing to do.
+   NOTE: commented also in the list_del below!
+
+	// rtw_warn_on(!_rtw_spin_is_locked(&stapriv->asoc_list_lock));
+*/
 	rtw_list_insert_tail(&sta->asoc_list, &stapriv->asoc_list);
 	stapriv->asoc_list_cnt++;
 #ifdef CONFIG_RTW_TOKEN_BASED_XMIT
@@ -1145,7 +1157,7 @@ void rtw_stapriv_asoc_list_add(struct sta_priv *stapriv, struct sta_info *sta)
 
 void rtw_stapriv_asoc_list_del(struct sta_priv *stapriv, struct sta_info *sta)
 {
-	rtw_warn_on(!_rtw_spin_is_locked(&stapriv->asoc_list_lock));
+	// rtw_warn_on(!_rtw_spin_is_locked(&stapriv->asoc_list_lock));
 	rtw_list_delete(&sta->asoc_list);
 	stapriv->asoc_list_cnt--;
 #ifdef CONFIG_RTW_TOKEN_BASED_XMIT
