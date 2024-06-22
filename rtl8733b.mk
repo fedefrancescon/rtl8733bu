@@ -1,5 +1,9 @@
 EXTRA_CFLAGS += -DCONFIG_RTL8733B
 
+# Enable concurrent mode in driver so we have two interfaces visible
+# and can do both STA and AP at the same time
+EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE -DCONFIG_IFACE_NUMBER=2
+
 #ifeq ($(CONFIG_MP_INCLUDED), y)
 ### 8733B Default Enable VHT MP HW TX MODE ###
 #EXTRA_CFLAGS += -DCONFIG_MP_VHT_HW_TX_MODE
